@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Study Group Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">§</span>
+      <div>
+        <h1>Study Group Ledger</h1>
+        <p>CSE-224 &middot; Database Management System Lab</p>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="groups">01 &nbsp;Study Groups</button>
+    <button class="tab" data-tab="subjects">02 &nbsp;Subjects</button>
+    <button class="tab" data-tab="members">03 &nbsp;Members</button>
+  </nav>
+
+  <main>
+
+    <!-- ============ STUDY GROUPS ============ -->
+    <section class="panel active" id="panel-groups">
+      <div class="panel-head">
+        <h2>Study Groups</h2>
+        <div class="panel-controls">
+          <select id="subject-filter">
+            <option value="">All subjects</option>
+          </select>
+          <button class="btn-primary" id="btn-new-group">+ New study group</button>
+        </div>
+      </div>
+      <div class="card-grid" id="groups-list"></div>
+    </section>
+
+    <!-- ============ SUBJECTS ============ -->
+    <section class="panel" id="panel-subjects">
+      <div class="panel-head">
+        <h2>Subjects</h2>
+        <button class="btn-primary" id="btn-new-subject">+ New subject</button>
+      </div>
+      <table class="data-table" id="subjects-table">
+        <thead>
+          <tr><th>Code</th><th>Subject Name</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <!-- ============ MEMBERS ============ -->
+    <section class="panel" id="panel-members">
+      <div class="panel-head">
+        <h2>Members</h2>
+        <button class="btn-primary" id="btn-new-member">+ New member</button>
+      </div>
+      <table class="data-table" id="members-table">
+        <thead>
+          <tr><th>Name</th><th>Email</th><th>Phone</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+  </main>
+
+  <!-- ============ MODAL (shared, filled dynamically) ============ -->
+  <div class="modal-backdrop" id="modal-backdrop">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="modal-title">Form</h3>
+        <button class="modal-close" id="modal-close">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
