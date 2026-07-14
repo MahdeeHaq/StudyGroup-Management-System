@@ -33,8 +33,35 @@ h1, h2, h3 {
   background: var(--ink);
   color: var(--paper);
   padding: 22px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
 }
 .brand { display: flex; align-items: center; gap: 14px; }
+
+/* ---------------- Auth area ---------------- */
+.auth-area { display: flex; align-items: center; gap: 10px; }
+.auth-area .btn-ghost {
+  background: transparent;
+  border: 1px solid #3C4C5E;
+  color: var(--paper);
+  font-family: 'Work Sans', sans-serif;
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.auth-area .btn-ghost:hover { border-color: var(--mustard); color: var(--mustard); }
+.auth-status {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px;
+  color: var(--mustard);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .brand-mark {
   font-family: 'Fraunces', serif;
   font-size: 34px;
@@ -92,7 +119,14 @@ main { max-width: 1080px; margin: 0 auto; padding: 32px; }
 }
 .panel-head h2 { font-size: 24px; }
 
-.panel-controls { display: flex; gap: 10px; align-items: center; }
+.panel-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.panel-controls input[type="text"] { min-width: 220px; }
+
+.locked-note {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
 
 /* ---------------- Buttons ---------------- */
 .btn-primary, .btn-secondary, .btn-danger {
@@ -170,6 +204,27 @@ label {
 .status-Completed { background: #E4E4E4; color: #555; }
 .status-Cancelled { background: #F5E1DE; color: var(--danger); }
 
+.badge-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.week-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.04em;
+  background: var(--mustard);
+  color: #4A3510;
+  white-space: nowrap;
+}
+
+.capacity-line {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin-top: 6px;
+}
+.capacity-full { color: var(--danger); font-weight: 600; }
+
 .group-card .meta {
   margin: 10px 0;
   font-size: 13px;
@@ -214,6 +269,58 @@ label {
   margin-top: 12px;
   padding-top: 10px;
   border-top: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+/* ---------------- Materials ---------------- */
+.materials-section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+.materials-section h4 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+  margin: 0 0 8px;
+  font-weight: 500;
+}
+.material-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12.5px;
+}
+.material-item a {
+  color: var(--teal-dark);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.material-item a:hover { text-decoration: underline; }
+.material-meta { color: var(--ink-soft); font-size: 11px; }
+.material-item button {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 11px;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.btn-link-add {
+  background: none;
+  border: none;
+  color: var(--teal-dark);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px 0;
 }
 
 /* ---------------- Tables ---------------- */

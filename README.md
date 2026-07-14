@@ -84,11 +84,39 @@ You should see output like `Running on http://127.0.0.1:5000`. Open that URL in 
 
 ## 6. Using the app
 
-- **Study Groups tab:** create/edit/delete study sessions, filter by subject, and add/remove members from a group (this exercises the many-to-many `group_members` table).
-- **Subjects tab:** manage the subject list.
-- **Members tab:** manage the student list.
+- **Study Groups tab:** browse/search/filter study sessions, join or leave a group, and upload materials — open to any visitor.
+- **Subjects tab / Members tab:** browse the lists — open to any visitor.
+- **Creating, editing, or deleting** subjects, members, or study groups requires an **admin login** (see below).
 
 Deleting a subject or member that's still referenced by a study group will fail on purpose — this demonstrates that your foreign key constraints (`ON DELETE RESTRICT`) are working correctly, which is exactly the kind of data integrity a DBMS course wants you to show.
+
+## 7. Admin login
+
+Click **Admin login** in the top-right of the page. A default account is created automatically the first time you run `python app.py`:
+
+```
+username: admin
+password: admin123
+```
+
+Logged in as admin, you can create/edit/delete subjects, members, and study groups, and see a small **Dashboard** with row counts across all 4 tables. Log out with the **Logout** button — everyone else only sees the read-only view plus joining groups and uploading materials.
+
+To change the default password, either add a "change password" flow yourself, or directly update the `admins` table in phpMyAdmin with a new bcrypt/werkzeug hash generated in a Python shell:
+
+```python
+from werkzeug.security import generate_password_hash
+print(generate_password_hash("your-new-password"))
+```
+Paste the result into the `password_hash` column for the `admin` row.
+
+## 8. Materials (file uploads)
+
+Any visitor can upload a file (PDF, Word, PowerPoint, Excel, images, or zip, up to 16MB) to a study group via **+ Upload material** on that group's card. Files are stored on disk in `static/uploads/` and tracked in the `materials` table (linked to the group and to whichever member uploaded it). Only an admin can delete a material.
+
+## 9. Capacity and "This week"
+
+- Each study group has a **max members** value; once a group reaches that count, joining is blocked both in the UI and by the backend (so it can't be bypassed by calling the API directly).
+- Groups meeting within the next 7 days get an automatic **"This week"** badge — purely a frontend calculation based on `meeting_time`, no extra data needed.
 
 ## Project structure
 

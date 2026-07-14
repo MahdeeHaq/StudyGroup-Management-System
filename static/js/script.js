@@ -1,9 +1,8 @@
 // ============================================================
 // Study Group Management System — frontend logic
-// Talks to the Flask API defined in app.py
 // ============================================================
 
-const state = { subjects: [], members: [], groups: [] };
+const state = { subjects: [], members: [], groups: [], isAdmin: false, adminUsername: null };
 
 // ---------------- Tabs ----------------
 document.querySelectorAll(".tab").forEach(tab => {
@@ -26,10 +25,14 @@ function showToast(message, isError = false) {
 
 // ---------------- Fetch helper ----------------
 async function api(path, options = {}) {
-  const res = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
+  const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Something went wrong");
+  return data;
+}
+// separate helper for multipart/form-data (file uploads) — don't set Content-Type manually
+async function apiForm(path, formData) {
+  const res = await fetch(path, { method: "POST", body: formData });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Something went wrong");
   return data;
@@ -50,6 +53,103 @@ document.getElementById("modal-close").addEventListener("click", closeModal);
 backdrop.addEventListener("click", e => { if (e.target === backdrop) closeModal(); });
 
 // ============================================================
+// ADMIN AUTH
+// ============================================================
+async function refreshAuthUI() {
+  try {
+    const status = await api("/api/auth/status");
+    state.isAdmin = status.logged_in;
+    state.adminUsername = status.username || null;
+  } catch (e) {
+    state.isAdmin = false;
+  }
+  renderAuthArea();
+  applyAdminGating();
+}
+
+function renderAuthArea() {
+  const area = document.getElementById("auth-area");
+  if (state.isAdmin) {
+    area.innerHTML = `
+      <div class="auth-status">
+        Signed in as ${state.adminUsername}
+        <button class="btn-ghost" id="btn-dashboard">Dashboard</button>
+        <button class="btn-ghost" id="btn-logout">Logout</button>
+      </div>`;
+    document.getElementById("btn-dashboard").addEventListener("click", openDashboard);
+    document.getElementById("btn-logout").addEventListener("click", doLogout);
+  } else {
+    area.innerHTML = `<button class="btn-ghost" id="btn-login">Admin login</button>`;
+    document.getElementById("btn-login").addEventListener("click", openLoginModal);
+  }
+}
+
+function openLoginModal() {
+  openModal("Admin login", `
+    <div class="field"><label>Username</label><input id="f-login-user" placeholder="admin"></div>
+    <div class="field"><label>Password</label><input id="f-login-pass" type="password" placeholder="••••••••"></div>
+    <p class="locked-note">Default account: <strong>admin</strong> / <strong>admin123</strong> (set up automatically on first run).</p>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" id="btn-do-login">Log in</button>
+    </div>
+  `);
+  document.getElementById("btn-do-login").addEventListener("click", async () => {
+    const username = document.getElementById("f-login-user").value.trim();
+    const password = document.getElementById("f-login-pass").value;
+    try {
+      const result = await api("/api/auth/login", { method: "POST", body: JSON.stringify({ username, password }) });
+      closeModal();
+      showToast(`Welcome, ${result.username}`);
+      await refreshAuthUI();
+    } catch (e) { showToast(e.message, true); }
+  });
+}
+
+async function doLogout() {
+  try {
+    await api("/api/auth/logout", { method: "POST" });
+    showToast("Logged out");
+    await refreshAuthUI();
+  } catch (e) { showToast(e.message, true); }
+}
+
+async function openDashboard() {
+  try {
+    const stats = await api("/api/admin/stats");
+    openModal("Admin dashboard", `
+      <div class="field"><label>Subjects</label><div style="font-size:22px;font-family:'Fraunces',serif;">${stats.subjects}</div></div>
+      <div class="field"><label>Members</label><div style="font-size:22px;font-family:'Fraunces',serif;">${stats.members}</div></div>
+      <div class="field"><label>Study groups</label><div style="font-size:22px;font-family:'Fraunces',serif;">${stats.groups}</div></div>
+      <div class="field"><label>Materials uploaded</label><div style="font-size:22px;font-family:'Fraunces',serif;">${stats.materials}</div></div>
+      <div class="modal-footer"><button class="btn-secondary" onclick="closeModal()">Close</button></div>
+    `);
+  } catch (e) { showToast(e.message, true); }
+}
+
+// Hides/disables Create/Edit/Delete controls for subjects, members,
+// and study groups when no admin is logged in. Joining a group and
+// uploading materials stay open to everyone.
+function applyAdminGating() {
+  const newButtons = ["btn-new-subject", "btn-new-member", "btn-new-group"];
+  newButtons.forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.style.display = state.isAdmin ? "" : "none";
+  });
+
+  document.querySelectorAll(".locked-note.top-level").forEach(n => n.remove());
+  if (!state.isAdmin) {
+    document.querySelectorAll(".panel-head .panel-controls").forEach(controls => {
+      const n = document.createElement("span");
+      n.className = "locked-note top-level";
+      n.textContent = "Log in as admin to add or edit";
+      controls.appendChild(n);
+    });
+  }
+}
+
+// ============================================================
 // SUBJECTS
 // ============================================================
 async function loadSubjects() {
@@ -61,7 +161,7 @@ async function loadSubjects() {
 function renderSubjectsTable() {
   const tbody = document.querySelector("#subjects-table tbody");
   if (state.subjects.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="3" class="empty-state">No subjects yet. Add one to get started.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="3" class="empty-state">No subjects yet.</td></tr>`;
     return;
   }
   tbody.innerHTML = state.subjects.map(s => `
@@ -69,8 +169,10 @@ function renderSubjectsTable() {
       <td>${s.subject_code}</td>
       <td>${s.subject_name}</td>
       <td class="row-actions">
-        <button onclick="editSubject(${s.subject_id})">Edit</button>
-        <button class="danger" onclick="deleteSubject(${s.subject_id})">Delete</button>
+        ${state.isAdmin ? `
+          <button onclick="editSubject(${s.subject_id})">Edit</button>
+          <button class="danger" onclick="deleteSubject(${s.subject_id})">Delete</button>
+        ` : ""}
       </td>
     </tr>
   `).join("");
@@ -140,7 +242,7 @@ async function loadMembers() {
 function renderMembersTable() {
   const tbody = document.querySelector("#members-table tbody");
   if (state.members.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" class="empty-state">No members yet. Add one to get started.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" class="empty-state">No members yet.</td></tr>`;
     return;
   }
   tbody.innerHTML = state.members.map(m => `
@@ -149,8 +251,10 @@ function renderMembersTable() {
       <td>${m.email}</td>
       <td>${m.phone || "—"}</td>
       <td class="row-actions">
-        <button onclick="editMember(${m.member_id})">Edit</button>
-        <button class="danger" onclick="deleteMember(${m.member_id})">Delete</button>
+        ${state.isAdmin ? `
+          <button onclick="editMember(${m.member_id})">Edit</button>
+          <button class="danger" onclick="deleteMember(${m.member_id})">Delete</button>
+        ` : ""}
       </td>
     </tr>
   `).join("");
@@ -210,14 +314,23 @@ window.deleteMember = async (id) => {
 // ============================================================
 // STUDY GROUPS
 // ============================================================
+let searchDebounce;
 async function loadGroups() {
-  const filterVal = document.getElementById("subject-filter").value;
-  const query = filterVal ? `?subject_id=${filterVal}` : "";
+  const subjectVal = document.getElementById("subject-filter").value;
+  const searchVal = document.getElementById("search-input").value.trim();
+  const params = new URLSearchParams();
+  if (subjectVal) params.set("subject_id", subjectVal);
+  if (searchVal) params.set("search", searchVal);
+  const query = params.toString() ? `?${params.toString()}` : "";
   state.groups = await api(`/api/groups${query}`);
   renderGroups();
 }
 
 document.getElementById("subject-filter").addEventListener("change", loadGroups);
+document.getElementById("search-input").addEventListener("input", () => {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(loadGroups, 300);
+});
 
 function fmtDateTime(dt) {
   const d = new Date(dt.replace(" ", "T"));
@@ -225,20 +338,44 @@ function fmtDateTime(dt) {
   return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
+function isThisWeek(dt) {
+  const d = new Date(dt.replace(" ", "T"));
+  if (isNaN(d)) return false;
+  const now = new Date();
+  const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  return d >= now && d <= weekFromNow;
+}
+
+const FILE_ICONS = {
+  pdf: "📕", doc: "📄", docx: "📄", ppt: "📊", pptx: "📊",
+  xls: "📊", xlsx: "📊", txt: "📄", png: "🖼️", jpg: "🖼️",
+  jpeg: "🖼️", gif: "🖼️", zip: "🗜️",
+};
+function fileIcon(filename) {
+  const ext = filename.split(".").pop().toLowerCase();
+  return FILE_ICONS[ext] || "📎";
+}
+
 function renderGroups() {
   const list = document.getElementById("groups-list");
   if (state.groups.length === 0) {
-    list.innerHTML = `<div class="empty-state">No study groups yet. Create one to get started.</div>`;
+    list.innerHTML = `<div class="empty-state">No study groups found.</div>`;
     return;
   }
-  list.innerHTML = state.groups.map(g => `
+  list.innerHTML = state.groups.map(g => {
+    const joinedCount = g.members.length;
+    const isFull = joinedCount >= g.max_members;
+    return `
     <div class="group-card">
       <div class="card-top">
         <div>
           <h3>${g.group_name}</h3>
           <div class="subject-code">${g.subject_code} · ${g.subject_name}</div>
         </div>
-        <span class="status-badge status-${g.status}">${g.status}</span>
+        <div class="badge-row">
+          ${isThisWeek(g.meeting_time) ? `<span class="week-badge">This week</span>` : ""}
+          <span class="status-badge status-${g.status}">${g.status}</span>
+        </div>
       </div>
       <div class="meta">
         <div>📅 ${fmtDateTime(g.meeting_time)}</div>
@@ -246,19 +383,44 @@ function renderGroups() {
         <div>🧑‍🏫 Organizer: ${g.organizer_name}</div>
       </div>
       ${g.description ? `<div class="desc">${g.description}</div>` : ""}
+
+      <div class="capacity-line ${isFull ? "capacity-full" : ""}">
+        ${joinedCount}/${g.max_members} joined ${isFull ? "— full" : ""}
+      </div>
+
       <div class="members">
         ${g.members.map(m => `
           <span class="member-chip">${m.full_name}
             <button onclick="removeMemberFromGroup(${g.group_id}, ${m.member_id})" title="Remove">✕</button>
           </span>`).join("") || `<span class="member-chip" style="opacity:.5">No members joined</span>`}
-        <span class="member-chip" style="cursor:pointer" onclick="openAddMember(${g.group_id})">+ Add member</span>
+        ${!isFull ? `<span class="member-chip" style="cursor:pointer" onclick="openAddMember(${g.group_id})">+ Add member</span>` : ""}
       </div>
+
+      <div class="materials-section">
+        <h4>Materials</h4>
+        ${g.materials.length === 0 ? `<div class="locked-note">No materials uploaded yet.</div>` : ""}
+        ${g.materials.map(mat => `
+          <div class="material-item">
+            <a href="/uploads/${mat.stored_filename}" target="_blank" rel="noopener">
+              ${fileIcon(mat.original_filename)} ${mat.original_filename}
+            </a>
+            <span class="material-meta">by ${mat.uploaded_by_name}
+              ${state.isAdmin ? `<button onclick="deleteMaterial(${mat.material_id})">Delete</button>` : ""}
+            </span>
+          </div>
+        `).join("")}
+        <button class="btn-link-add" onclick="openUploadMaterial(${g.group_id})">+ Upload material</button>
+      </div>
+
       <div class="card-actions">
-        <button class="btn-secondary" onclick="editGroup(${g.group_id})">Edit</button>
-        <button class="btn-danger" onclick="deleteGroup(${g.group_id})">Delete</button>
+        ${state.isAdmin ? `
+          <button class="btn-secondary" onclick="editGroup(${g.group_id})">Edit</button>
+          <button class="btn-danger" onclick="deleteGroup(${g.group_id})">Delete</button>
+        ` : ""}
       </div>
     </div>
-  `).join("");
+  `;
+  }).join("");
 }
 
 function groupFormHtml(group = {}) {
@@ -281,6 +443,8 @@ function groupFormHtml(group = {}) {
       <input type="datetime-local" id="f-group-time" value="${dt}"></div>
     <div class="field"><label>Location</label>
       <input id="f-group-location" value="${group.location || ""}" placeholder="e.g. Library Room 3"></div>
+    <div class="field"><label>Max members</label>
+      <input type="number" min="1" id="f-group-max" value="${group.max_members || 8}"></div>
     <div class="field"><label>Description</label>
       <textarea id="f-group-desc" rows="2" placeholder="Optional notes">${group.description || ""}</textarea></div>
     <div class="field"><label>Status</label>
@@ -317,6 +481,7 @@ async function saveGroup(id) {
     meeting_time: document.getElementById("f-group-time").value.replace("T", " ") + ":00",
     location: document.getElementById("f-group-location").value.trim(),
     description: document.getElementById("f-group-desc").value.trim(),
+    max_members: document.getElementById("f-group-max").value,
     status: document.getElementById("f-group-status").value,
   };
   try {
@@ -378,9 +543,57 @@ window.removeMemberFromGroup = async (groupId, memberId) => {
   } catch (e) { showToast(e.message, true); }
 };
 
+// ============================================================
+// MATERIALS
+// ============================================================
+window.openUploadMaterial = (groupId) => {
+  if (state.members.length === 0) {
+    showToast("Add at least one member first", true);
+    return;
+  }
+  const memberOpts = state.members.map(m => `<option value="${m.member_id}">${m.full_name}</option>`).join("");
+  openModal("Upload material", `
+    <div class="field"><label>Uploading as</label>
+      <select id="f-mat-member">${memberOpts}</select></div>
+    <div class="field"><label>File</label>
+      <input type="file" id="f-mat-file"></div>
+    <div class="field"><label>Description</label>
+      <input id="f-mat-desc" placeholder="Optional, e.g. Week 3 slides"></div>
+    <p class="locked-note">Allowed: pdf, doc(x), ppt(x), xls(x), txt, images, zip — max 16MB.</p>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" id="btn-do-upload">Upload</button>
+    </div>
+  `);
+  document.getElementById("btn-do-upload").addEventListener("click", async () => {
+    const fileInput = document.getElementById("f-mat-file");
+    if (!fileInput.files.length) { showToast("Choose a file first", true); return; }
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+    formData.append("uploaded_by", document.getElementById("f-mat-member").value);
+    formData.append("description", document.getElementById("f-mat-desc").value.trim());
+    try {
+      await apiForm(`/api/groups/${groupId}/materials`, formData);
+      closeModal();
+      showToast("Material uploaded");
+      await loadGroups();
+    } catch (e) { showToast(e.message, true); }
+  });
+};
+
+window.deleteMaterial = async (materialId) => {
+  if (!confirm("Delete this material?")) return;
+  try {
+    await api(`/api/materials/${materialId}`, { method: "DELETE" });
+    showToast("Material deleted");
+    await loadGroups();
+  } catch (e) { showToast(e.message, true); }
+};
+
 // ---------------- Init ----------------
 (async function init() {
   try {
+    await refreshAuthUI();
     await loadSubjects();
     await loadMembers();
     await loadGroups();
