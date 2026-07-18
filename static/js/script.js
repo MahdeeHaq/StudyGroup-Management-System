@@ -390,9 +390,10 @@ function renderGroups() {
 
       <div class="members">
         ${g.members.map(m => `
-          <span class="member-chip">${m.full_name}
-            <button onclick="removeMemberFromGroup(${g.group_id}, ${m.member_id})" title="Remove">✕</button>
-          </span>`).join("") || `<span class="member-chip" style="opacity:.5">No members joined</span>`}
+          <span class="member-chip ${m.member_id === g.organizer_id ? "member-chip-organizer" : ""}">${m.full_name}${m.member_id === g.organizer_id
+            ? ` <em>(Organizer)</em>`
+            : ` <button onclick="removeMemberFromGroup(${g.group_id}, ${m.member_id})" title="Remove">✕</button>`
+          }</span>`).join("") || `<span class="member-chip" style="opacity:.5">No members joined</span>`}
         ${!isFull ? `<span class="member-chip" style="cursor:pointer" onclick="openAddMember(${g.group_id})">+ Add member</span>` : ""}
       </div>
 
