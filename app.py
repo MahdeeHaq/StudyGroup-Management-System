@@ -13,6 +13,7 @@ Flask backend exposing a JSON REST API on top of MySQL, plus:
 """
 
 import os
+import re
 import uuid
 from functools import wraps
 
@@ -53,6 +54,16 @@ ALLOWED_EXTENSIONS = {
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+# Matches "YYYY-MM-DD HH:MM:SS" — what the frontend sends. Catches
+# empty/malformed values before they can reach MySQL as an invalid
+# date (which MySQL would otherwise silently store as NULL).
+DATETIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")
+
+
+def is_valid_datetime(value):
+    return bool(value) and bool(DATETIME_RE.match(value))
 
 
 def get_connection():
@@ -371,6 +382,8 @@ def create_group():
     required = ["group_name", "subject_id", "organizer_id", "meeting_time", "location"]
     if not all((data.get(f) or "").__str__().strip() for f in required):
         return jsonify({"error": f"Required fields: {', '.join(required)}"}), 400
+    if not is_valid_datetime(data.get("meeting_time")):
+        return jsonify({"error": "Please provide a valid meeting date and time"}), 400
 
     try:
         new_id = run_query(
@@ -407,6 +420,8 @@ def update_group(group_id):
     required = ["group_name", "subject_id", "organizer_id", "meeting_time", "location"]
     if not all((data.get(f) or "").__str__().strip() for f in required):
         return jsonify({"error": f"Required fields: {', '.join(required)}"}), 400
+    if not is_valid_datetime(data.get("meeting_time")):
+        return jsonify({"error": "Please provide a valid meeting date and time"}), 400
 
     try:
         run_query(

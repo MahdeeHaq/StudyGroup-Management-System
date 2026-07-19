@@ -338,12 +338,14 @@ document.getElementById("search-input").addEventListener("input", () => {
 });
 
 function fmtDateTime(dt) {
+  if (!dt) return "No date set";
   const d = new Date(dt.replace(" ", "T"));
   if (isNaN(d)) return dt;
   return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
 function isThisWeek(dt) {
+  if (!dt) return false;
   const d = new Date(dt.replace(" ", "T"));
   if (isNaN(d)) return false;
   const now = new Date();
@@ -480,11 +482,16 @@ window.editGroup = (id) => {
 };
 
 async function saveGroup(id) {
+  const timeVal = document.getElementById("f-group-time").value;
+  if (!timeVal) {
+    showToast("Please choose a meeting date and time", true);
+    return;
+  }
   const payload = {
     group_name: document.getElementById("f-group-name").value.trim(),
     subject_id: document.getElementById("f-group-subject").value,
     organizer_id: document.getElementById("f-group-organizer").value,
-    meeting_time: document.getElementById("f-group-time").value.replace("T", " ") + ":00",
+    meeting_time: timeVal.replace("T", " ") + ":00",
     location: document.getElementById("f-group-location").value.trim(),
     description: document.getElementById("f-group-desc").value.trim(),
     max_members: document.getElementById("f-group-max").value,
@@ -604,6 +611,6 @@ window.deleteMaterial = async (materialId) => {
     await loadMembers();
     await loadGroups();
   } catch (e) {
-    showToast("Could not connect to the server. Is Flask running?", true);
+    showToast(`Could not load data: ${e.message}`, true);
   }
 })();
