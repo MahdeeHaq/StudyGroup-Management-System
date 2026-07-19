@@ -389,6 +389,12 @@ def create_group():
             ),
             commit=True,
         )
+        # The organizer is automatically a member of the group they organize.
+        run_query(
+            "INSERT IGNORE INTO group_members (group_id, member_id) VALUES (%s, %s)",
+            (new_id, data["organizer_id"]),
+            commit=True,
+        )
         return jsonify({"group_id": new_id, "message": "Study group created"}), 201
     except Error as e:
         return jsonify({"error": str(e)}), 400
@@ -419,6 +425,12 @@ def update_group(group_id):
                 data.get("status") or "Scheduled",
                 group_id,
             ),
+            commit=True,
+        )
+        # Make sure the (possibly new) organizer is a member of the group.
+        run_query(
+            "INSERT IGNORE INTO group_members (group_id, member_id) VALUES (%s, %s)",
+            (group_id, data["organizer_id"]),
             commit=True,
         )
         return jsonify({"message": "Study group updated"})

@@ -65,6 +65,11 @@ async function refreshAuthUI() {
   }
   renderAuthArea();
   applyAdminGating();
+  // Re-draw whatever's already on screen so Edit/Delete controls
+  // appear or disappear immediately, without needing a page refresh.
+  renderSubjectsTable();
+  renderMembersTable();
+  renderGroups();
 }
 
 function renderAuthArea() {
